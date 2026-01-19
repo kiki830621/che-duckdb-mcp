@@ -1,107 +1,136 @@
 # che-duckdb-mcp
 
-整合版 DuckDB MCP Server，結合文檔查詢和資料庫操作功能。
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![macOS](https://img.shields.io/badge/macOS-13.0%2B-blue)](https://www.apple.com/macos/)
+[![Swift](https://img.shields.io/badge/Swift-5.9-orange.svg)](https://swift.org/)
+[![MCP](https://img.shields.io/badge/MCP-Compatible-green.svg)](https://modelcontextprotocol.io/)
 
-## 功能
+**DuckDB Documentation & Database MCP Server** - All-in-one solution for DuckDB documentation search and database operations.
 
-### 文檔工具 (8 個)
+[English](README.md) | [繁體中文](README_zh-TW.md)
 
-| 工具 | 功能 | 只讀 |
-|------|------|------|
-| `search_docs` | 搜索文檔 | ✓ |
-| `list_sections` | 列出章節 | ✓ |
-| `get_section` | 取得章節內容 | ✓ |
-| `get_function_docs` | 查詢函數文檔 | ✓ |
-| `list_functions` | 列出所有函數 | ✓ |
-| `get_sql_syntax` | 查詢 SQL 語法 | ✓ |
-| `refresh_docs` | 強制更新文檔 | ✗ |
-| `get_doc_info` | 取得文檔資訊 | ✓ |
+---
 
-### 資料庫工具 (6 個)
+## Why che-duckdb-mcp?
 
-| 工具 | 功能 | 只讀 |
-|------|------|------|
-| `db_connect` | 連接資料庫 | ✗ |
-| `db_query` | 執行 SELECT 查詢 | ✓ |
-| `db_execute` | 執行 DDL/DML | ✗ |
-| `db_list_tables` | 列出表格和視圖 | ✓ |
-| `db_describe` | 描述表格或查詢結構 | ✓ |
-| `db_info` | 取得資料庫資訊 | ✓ |
+| Feature | Other DuckDB MCPs | che-duckdb-mcp |
+|---------|-------------------|----------------|
+| Database Queries | Yes | Yes |
+| **Documentation Search** | No | **Yes** |
+| **Function Docs** | No | **Yes** |
+| **SQL Syntax Reference** | No | **Yes** |
+| **Multiple Output Formats** | Some | **Yes (JSON/Markdown/CSV)** |
+| **In-Memory Database** | Some | **Yes** |
+| Language | Python | **Swift (Native)** |
 
-## 安裝
+---
 
-### 編譯
+## Quick Start
+
+### For Claude Code (CLI)
 
 ```bash
+# Create ~/bin if needed
+mkdir -p ~/bin
+
+# Build from source
+git clone https://github.com/kiki830621/che-duckdb-mcp.git
 cd che-duckdb-mcp
 swift build -c release
-```
 
-### 部署
-
-```bash
+# Install
 cp .build/release/CheDuckDBMCP ~/bin/
+
+# Register with Claude Code
+claude mcp add --scope user --transport stdio che-duckdb-mcp -- ~/bin/CheDuckDBMCP
 ```
 
-### 加入 Claude Code
+### For Claude Desktop
 
-```bash
-claude mcp add --scope user che-duckdb-mcp -- ~/bin/CheDuckDBMCP
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "che-duckdb-mcp": {
+      "command": "/Users/YOUR_USERNAME/bin/CheDuckDBMCP"
+    }
+  }
+}
 ```
 
-## 使用範例
+---
 
-### 文檔查詢
+## All 14 Tools
 
-```
-# 搜索文檔
-search_docs: { "query": "read_csv" }
+<details>
+<summary><b>Documentation Tools (8)</b></summary>
 
-# 查詢函數文檔
-get_function_docs: { "function_name": "json_extract" }
+| Tool | Description | Read-Only |
+|------|-------------|-----------|
+| `search_docs` | Search DuckDB documentation by keyword | ✓ |
+| `list_sections` | List all documentation sections | ✓ |
+| `get_section` | Get content of a specific section | ✓ |
+| `get_function_docs` | Get documentation for a DuckDB function | ✓ |
+| `list_functions` | List all documented functions | ✓ |
+| `get_sql_syntax` | Get SQL syntax documentation | ✓ |
+| `refresh_docs` | Force re-download documentation | ✗ |
+| `get_doc_info` | Get documentation cache info | ✓ |
 
-# 查詢 SQL 語法
-get_sql_syntax: { "statement": "COPY" }
-```
+</details>
 
-### 資料庫操作
+<details>
+<summary><b>Database Tools (6)</b></summary>
 
-```
-# 連接記憶體資料庫
-db_connect: {}
+| Tool | Description | Read-Only |
+|------|-------------|-----------|
+| `db_connect` | Connect to database (file or in-memory) | ✗ |
+| `db_query` | Execute SELECT queries | ✓ |
+| `db_execute` | Execute DDL/DML statements | ✗ |
+| `db_list_tables` | List all tables and views | ✓ |
+| `db_describe` | Describe table structure or query result | ✓ |
+| `db_info` | Get current connection info | ✓ |
 
-# 建立表格
-db_execute: { "sql": "CREATE TABLE users (id INTEGER, name VARCHAR)" }
+</details>
 
-# 插入資料
-db_execute: { "sql": "INSERT INTO users VALUES (1, 'Alice'), (2, 'Bob')" }
+---
 
-# 查詢資料（JSON 格式）
-db_query: { "sql": "SELECT * FROM users", "format": "json" }
+## Usage Examples
 
-# 查詢資料（Markdown 格式，適合閱讀）
-db_query: { "sql": "SELECT * FROM users", "format": "markdown" }
-
-# 列出表格
-db_list_tables: {}
-
-# 描述表格結構
-db_describe: { "table": "users" }
-```
-
-### 連接檔案資料庫
+### Documentation Queries
 
 ```
-# 連接現有的 DuckDB 檔案
-db_connect: { "path": "/path/to/database.duckdb" }
-
-# 唯讀模式
-db_connect: { "path": "/path/to/database.duckdb", "read_only": true }
+"Search for how to use read_csv"
+"How do I use the json_extract function?"
+"What's the syntax for COPY statement?"
+"List all DuckDB functions"
 ```
 
-## 輸出格式
+### Database Operations
 
-### JSON 格式
+```
+"Connect to an in-memory database"
+"Create a users table with id and name columns"
+"Insert some test data"
+"Show all users in Markdown format"
+"List all tables"
+"Describe the users table structure"
+```
+
+### File Database Connection
+
+```
+"Connect to /path/to/database.duckdb"
+"Open the database in read-only mode"
+```
+
+---
+
+## Output Formats
+
+`db_query` supports three output formats:
+
+### JSON Format (Default)
 ```json
 [
   {"id": 1, "name": "Alice"},
@@ -109,7 +138,7 @@ db_connect: { "path": "/path/to/database.duckdb", "read_only": true }
 ]
 ```
 
-### Markdown 格式
+### Markdown Format (Recommended for Reading)
 ```markdown
 | id | name  |
 |---:|-------|
@@ -117,29 +146,60 @@ db_connect: { "path": "/path/to/database.duckdb", "read_only": true }
 | 2  | Bob   |
 ```
 
-### CSV 格式
+### CSV Format
 ```csv
 id,name
 1,Alice
 2,Bob
 ```
 
-## 安全考量
+---
 
-1. **SQL 注入防護**：`db_query` 僅允許 SELECT、WITH、SHOW、DESCRIBE、EXPLAIN、PRAGMA 查詢
-2. **資源限制**：預設限制返回 1000 行，防止記憶體溢出
-3. **唯讀模式**：支援以唯讀模式開啟資料庫
+## Security Considerations
 
-## 系統需求
+1. **Query Validation**: `db_query` only allows SELECT, WITH, SHOW, DESCRIBE, EXPLAIN, PRAGMA
+2. **Resource Limits**: Default limit of 1000 rows per query
+3. **Read-Only Mode**: Support for opening databases in read-only mode
+4. **Local Access Only**: Only local files supported, no remote connections
 
-- macOS 13.0+
-- 網路連線（用於下載文檔）
+---
 
-## 快取位置
+## Technical Details
 
-- 文檔快取：`~/.cache/che-duckdb-mcp/duckdb-docs.md`
-- 快取過期：24 小時
+- **Current Version**: v1.0.0
+- **Framework**: [MCP Swift SDK](https://github.com/modelcontextprotocol/swift-sdk) v0.10.0
+- **DuckDB Binding**: [duckdb-swift](https://github.com/duckdb/duckdb-swift)
+- **Transport**: stdio
+- **Platform**: macOS 13.0+ (Ventura and later)
+- **Tools**: 14 tools (8 documentation + 6 database)
 
-## 授權
+---
 
-MIT License
+## Cache Location
+
+- **Documentation Cache**: System temporary directory (auto-cleanup)
+- **Cache Expiry**: 24 hours
+
+---
+
+## Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| Server disconnected | Rebuild with `swift build -c release` |
+| Documentation load failed | Check network connection, or use `refresh_docs` |
+| Database connection failed | Verify file path and read permissions |
+
+---
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+## Author
+
+Created by **Che Cheng** ([@kiki830621](https://github.com/kiki830621))
+
+If you find this useful, please consider giving it a star!
