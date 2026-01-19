@@ -1,0 +1,49 @@
+{
+  "manifest_version": "0.3",
+  "name": "che-duckdb-mcp",
+  "display_name": "DuckDB Documentation & Database",
+  "version": "1.0.0",
+  "description": "Integrated MCP server for DuckDB documentation search and database operations",
+  "long_description": "A powerful MCP server combining DuckDB documentation search with native database operations. Features 8 documentation tools for searching functions, syntax, and guides, plus 6 database tools for connecting, querying, and managing DuckDB databases. Supports JSON, Markdown, and CSV output formats.",
+  "author": {
+    "name": "Che Cheng",
+    "url": "https://github.com/kiki830621"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kiki830621/che-duckdb-mcp.git"
+  },
+  "homepage": "https://github.com/kiki830621/che-duckdb-mcp",
+  "support": "https://github.com/kiki830621/che-duckdb-mcp/issues",
+  "keywords": ["duckdb", "database", "sql", "documentation", "analytics"],
+  "license": "MIT",
+  "privacy_policies": ["https://github.com/kiki830621/che-duckdb-mcp/blob/main/mcpb/PRIVACY.md"],
+  "server": {
+    "type": "binary",
+    "entry_point": "server/CheDuckDBMCP",
+    "mcp_config": {
+      "command": "${__dirname}/server/CheDuckDBMCP",
+      "args": [],
+      "env": {}
+    }
+  },
+  "tools": [
+    { "name": "search_docs", "description": "Search DuckDB documentation by keyword" },
+    { "name": "list_sections", "description": "List all documentation sections" },
+    { "name": "get_section", "description": "Get content of a specific documentation section" },
+    { "name": "get_function_docs", "description": "Get documentation for a specific DuckDB function" },
+    { "name": "list_functions", "description": "List all documented DuckDB functions" },
+    { "name": "get_sql_syntax", "description": "Get SQL syntax documentation for a statement type" },
+    { "name": "refresh_docs", "description": "Force re-download the DuckDB documentation" },
+    { "name": "get_doc_info", "description": "Get information about the loaded documentation" },
+    { "name": "db_connect", "description": "Connect to a DuckDB database file or in-memory database" },
+    { "name": "db_query", "description": "Execute SELECT queries on the connected database" },
+    { "name": "db_execute", "description": "Execute DDL/DML statements (CREATE, INSERT, UPDATE, DELETE)" },
+    { "name": "db_list_tables", "description": "List all tables and views in the database" },
+    { "name": "db_describe", "description": "Describe table structure or query result schema" },
+    { "name": "db_info", "description": "Get information about the current database connection" }
+  ],
+  "compatibility": {
+    "platforms": ["darwin"]
+  }
+}

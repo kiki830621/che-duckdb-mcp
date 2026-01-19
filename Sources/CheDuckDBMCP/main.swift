@@ -1,5 +1,4 @@
 import Foundation
-import CheDuckDBMCPCore
 
 // Handle command line arguments
 if CommandLine.arguments.contains("--version") || CommandLine.arguments.contains("-v") {
