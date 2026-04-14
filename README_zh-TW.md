@@ -5,7 +5,7 @@
 [![Swift](https://img.shields.io/badge/Swift-5.9-orange.svg)](https://swift.org/)
 [![MCP](https://img.shields.io/badge/MCP-Compatible-green.svg)](https://modelcontextprotocol.io/)
 
-**DuckDB 文檔與資料庫 MCP Server** - 整合文檔查詢與資料庫操作的一站式解決方案。
+**DuckDB 文檔與資料庫 MCP Server** — Swift 原生的一站式方案，整合文檔查詢與本地資料庫操作。
 
 [English](README.md) | [繁體中文](README_zh-TW.md)
 
@@ -13,39 +13,53 @@
 
 ## 為什麼選擇 che-duckdb-mcp？
 
-| 功能 | 其他 DuckDB MCP | che-duckdb-mcp |
-|------|-----------------|----------------|
+| 功能 | 其他 DuckDB MCP | che-duckdb-mcp v2 |
+|------|-----------------|-------------------|
 | 資料庫查詢 | 是 | 是 |
-| **文檔搜索** | 否 | **是** |
-| **函數文檔** | 否 | **是** |
+| **TF-IDF 文檔搜尋** | 否 | **是**（倒排索引 + cosine similarity） |
+| **函數模糊比對** | 否 | **是**（Levenshtein ≤ 2） |
+| **雙來源文檔**（llms.txt + 完整版） | 否 | **是** |
 | **SQL 語法參考** | 否 | **是** |
-| **多種輸出格式** | 部分 | **是 (JSON/Markdown/CSV)** |
+| **多種輸出格式** | 部分 | **是**（JSON / Markdown / CSV） |
 | **記憶體資料庫** | 部分 | **是** |
-| 語言 | Python | **Swift (原生)** |
+| **完整 DuckDB 錯誤訊息** | 部分 | **是**（Binder/Catalog/Parser） |
+| 語言 | Python | **Swift（原生 binary、零 runtime 依賴）** |
 
 ---
 
-## 快速開始
+## 安裝
 
-### Claude Code (CLI)
+三種方式，任選一種。
+
+### 方式 1：Claude Code Plugin（推薦，自動下載 binary）
+
+```
+/plugin marketplace add psychquant-claude-plugins
+/plugin install che-duckdb-mcp@psychquant-claude-plugins
+```
+
+首次使用時，plugin 的 wrapper script 會自動從 [GitHub Releases](https://github.com/PsychQuant/che-duckdb-mcp/releases) 下載最新的 `CheDuckDBMCP` binary 到 `~/bin/`，不需要手動編譯。
+
+### 方式 2：手動安裝 Binary（供 `claude mcp add` 使用）
 
 ```bash
-# 建立 ~/bin（如果不存在）
+# 選項 A：下載預先編譯的 binary
 mkdir -p ~/bin
+curl -L -o ~/bin/CheDuckDBMCP \
+  https://github.com/PsychQuant/che-duckdb-mcp/releases/latest/download/CheDuckDBMCP
+chmod +x ~/bin/CheDuckDBMCP
 
-# 編譯
-git clone https://github.com/kiki830621/che-duckdb-mcp.git
+# 選項 B：從原始碼編譯（需要 Swift 5.9+、macOS 13+）
+git clone https://github.com/PsychQuant/che-duckdb-mcp.git
 cd che-duckdb-mcp
 swift build -c release
-
-# 安裝
 cp .build/release/CheDuckDBMCP ~/bin/
 
 # 加入 Claude Code
 claude mcp add --scope user --transport stdio che-duckdb-mcp -- ~/bin/CheDuckDBMCP
 ```
 
-### Claude Desktop
+### 方式 3：Claude Desktop
 
 編輯 `~/Library/Application Support/Claude/claude_desktop_config.json`：
 
@@ -58,6 +72,8 @@ claude mcp add --scope user --transport stdio che-duckdb-mcp -- ~/bin/CheDuckDBM
   }
 }
 ```
+
+安裝完成後，重啟 Claude Code / Claude Desktop 才會載入新的 MCP server。
 
 ---
 
@@ -164,11 +180,23 @@ id,name
 
 ---
 
+## v2.0 新功能
+
+- **TF-IDF 搜尋引擎** — 倒排索引 + cosine similarity 排序，比 substring match 精準一個數量級
+- **雙來源文檔** — 合併 `llms.txt`（3 KB LLM 參考）和 `duckdb-docs.md`（5 MB 完整版），llms.txt 命中額外加 1.5× 分數
+- **函數模糊比對** — Levenshtein distance ≤ 2，支援大小寫和底線正規化（`read_csvs` → `read_csv`、`JSON_EXTRACT` → `json_extract`）
+- **HTTP 條件式快取** — 以 ETag / Last-Modified 取代固定 24 小時過期，5 MB 的文檔不再每日重下
+- **Pinned duckdb-swift revision** — 避免 upstream automated update 造成的 storage format 破壞
+- **Storage version 相容性檢查** — `db_connect` 開啟檔案前先讀取 header
+- **真實的 DuckDB 錯誤訊息** — `Binder Error` / `Catalog Error` / `Parser Error` 直接透過 MCP response 穿透，不再是 opaque `DuckDB.DatabaseError error N`（[fix #1](https://github.com/PsychQuant/che-duckdb-mcp/issues/1)）
+
+---
+
 ## 技術細節
 
-- **目前版本**：v1.1.0
-- **框架**：[MCP Swift SDK](https://github.com/modelcontextprotocol/swift-sdk) v0.11.0
-- **DuckDB 綁定**：[duckdb-swift](https://github.com/duckdb/duckdb-swift)（main branch，~v1.5.0-dev）
+- **目前版本**：v2.0.0
+- **框架**：[MCP Swift SDK](https://github.com/modelcontextprotocol/swift-sdk) v0.12.0
+- **DuckDB 綁定**：[duckdb-swift](https://github.com/duckdb/duckdb-swift) pinned revision `d90cf8d`（DuckDB v1.5.0-dev）
 - **傳輸方式**：stdio
 - **平台需求**：macOS 13.0+
 - **工具數量**：14 個（8 文檔 + 6 資料庫）
@@ -177,8 +205,11 @@ id,name
 
 ## 快取位置
 
-- **文檔快取**：系統暫存目錄（自動清理）
-- **快取過期**：24 小時
+- **快取目錄**：`~/.cache/che-duckdb-mcp/`
+  - `llms.txt` — LLM 精簡參考
+  - `duckdb-docs.md` — 完整文檔
+  - `cache-meta.json` — ETag / Last-Modified metadata
+- **更新策略**：HTTP 條件式請求（無固定過期時間）
 
 ---
 

@@ -5,7 +5,7 @@
 [![Swift](https://img.shields.io/badge/Swift-5.9-orange.svg)](https://swift.org/)
 [![MCP](https://img.shields.io/badge/MCP-Compatible-green.svg)](https://modelcontextprotocol.io/)
 
-**DuckDB Documentation & Database MCP Server** - All-in-one solution for DuckDB documentation search and database operations.
+**DuckDB Documentation & Database MCP Server** — All-in-one Swift-native solution for DuckDB documentation search and database operations.
 
 [English](README.md) | [繁體中文](README_zh-TW.md)
 
@@ -13,39 +13,53 @@
 
 ## Why che-duckdb-mcp?
 
-| Feature | Other DuckDB MCPs | che-duckdb-mcp |
-|---------|-------------------|----------------|
+| Feature | Other DuckDB MCPs | che-duckdb-mcp v2 |
+|---------|-------------------|-------------------|
 | Database Queries | Yes | Yes |
-| **Documentation Search** | No | **Yes** |
-| **Function Docs** | No | **Yes** |
+| **TF-IDF Documentation Search** | No | **Yes** (inverted index + cosine similarity) |
+| **Fuzzy Function Matching** | No | **Yes** (Levenshtein ≤ 2) |
+| **Dual-source docs** (llms.txt + full) | No | **Yes** |
 | **SQL Syntax Reference** | No | **Yes** |
-| **Multiple Output Formats** | Some | **Yes (JSON/Markdown/CSV)** |
+| **Multiple Output Formats** | Some | **Yes** (JSON / Markdown / CSV) |
 | **In-Memory Database** | Some | **Yes** |
-| Language | Python | **Swift (Native)** |
+| **Rich DuckDB error messages** | Partial | **Yes** (Binder/Catalog/Parser) |
+| Language | Python | **Swift (native binary, zero runtime deps)** |
 
 ---
 
-## Quick Start
+## Install
 
-### For Claude Code (CLI)
+Three ways to install, pick what fits your workflow.
+
+### 1. Claude Code Plugin (recommended — auto-download)
+
+```
+/plugin marketplace add psychquant-claude-plugins
+/plugin install che-duckdb-mcp@psychquant-claude-plugins
+```
+
+On first use, the plugin's wrapper script auto-downloads the latest `CheDuckDBMCP` binary from [GitHub Releases](https://github.com/PsychQuant/che-duckdb-mcp/releases) to `~/bin/`. No manual build required.
+
+### 2. Manual binary (for Claude Code `claude mcp add`)
 
 ```bash
-# Create ~/bin if needed
+# Option A: download pre-built binary
 mkdir -p ~/bin
+curl -L -o ~/bin/CheDuckDBMCP \
+  https://github.com/PsychQuant/che-duckdb-mcp/releases/latest/download/CheDuckDBMCP
+chmod +x ~/bin/CheDuckDBMCP
 
-# Build from source
-git clone https://github.com/kiki830621/che-duckdb-mcp.git
+# Option B: build from source (requires Swift 5.9+, macOS 13+)
+git clone https://github.com/PsychQuant/che-duckdb-mcp.git
 cd che-duckdb-mcp
 swift build -c release
-
-# Install
 cp .build/release/CheDuckDBMCP ~/bin/
 
 # Register with Claude Code
 claude mcp add --scope user --transport stdio che-duckdb-mcp -- ~/bin/CheDuckDBMCP
 ```
 
-### For Claude Desktop
+### 3. Claude Desktop
 
 Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
@@ -58,6 +72,8 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
   }
 }
 ```
+
+After install, restart Claude Code / Claude Desktop to load the new MCP server.
 
 ---
 
@@ -164,11 +180,23 @@ id,name
 
 ---
 
+## What's New in v2.0
+
+- **TF-IDF search engine** — inverted index + cosine similarity ranking, orders of magnitude better than substring match
+- **Dual-source documentation** — merges `llms.txt` (3 KB LLM reference) and `duckdb-docs.md` (5 MB full docs); llms.txt matches receive a 1.5× score bonus
+- **Fuzzy function matching** — Levenshtein distance ≤ 2 with case / underscore normalization (`read_csvs` → `read_csv`, `JSON_EXTRACT` → `json_extract`)
+- **Conditional HTTP caching** — ETag / Last-Modified replace the old 24-hour fixed expiry, so the 5 MB docs blob is no longer re-downloaded daily
+- **Pinned duckdb-swift revision** — no more surprise storage-format breakage from automated upstream updates
+- **Storage-version compatibility check** — `db_connect` reads the file header before opening
+- **Real DuckDB error messages** — `Binder Error` / `Catalog Error` / `Parser Error` now surface cleanly through MCP responses instead of opaque `DuckDB.DatabaseError error N` ([fix #1](https://github.com/PsychQuant/che-duckdb-mcp/issues/1))
+
+---
+
 ## Technical Details
 
-- **Current Version**: v1.1.0
-- **Framework**: [MCP Swift SDK](https://github.com/modelcontextprotocol/swift-sdk) v0.11.0
-- **DuckDB Binding**: [duckdb-swift](https://github.com/duckdb/duckdb-swift) (main branch, ~v1.5.0-dev)
+- **Current Version**: v2.0.0
+- **Framework**: [MCP Swift SDK](https://github.com/modelcontextprotocol/swift-sdk) v0.12.0
+- **DuckDB Binding**: [duckdb-swift](https://github.com/duckdb/duckdb-swift) pinned revision `d90cf8d` (DuckDB v1.5.0-dev)
 - **Transport**: stdio
 - **Platform**: macOS 13.0+ (Ventura and later)
 - **Tools**: 14 tools (8 documentation + 6 database)
@@ -177,8 +205,11 @@ id,name
 
 ## Cache Location
 
-- **Documentation Cache**: System temporary directory (auto-cleanup)
-- **Cache Expiry**: 24 hours
+- **Cache directory**: `~/.cache/che-duckdb-mcp/`
+  - `llms.txt` — lightweight LLM reference
+  - `duckdb-docs.md` — full documentation
+  - `cache-meta.json` — ETag / Last-Modified metadata
+- **Update strategy**: HTTP conditional requests (no fixed expiry)
 
 ---
 
