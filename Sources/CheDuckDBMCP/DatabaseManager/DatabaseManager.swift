@@ -22,6 +22,33 @@ public actor DatabaseManager {
     /// Pinned duckdb-swift revision for version reporting
     static let swiftBindingRevision = "d90cf8d"
 
+    /// Extract a human-readable message from a DuckDB error.
+    ///
+    /// `DuckDB.DatabaseError` is an enum whose cases carry the underlying DuckDB
+    /// message in a `reason: String?` associated value. The default
+    /// `error.localizedDescription` bridges to NSError and produces opaque
+    /// strings like "error 4" that drop the reason. This helper pattern-matches
+    /// the enum to surface the real message.
+    private static func extractMessage(from error: Error) -> String {
+        if let db = error as? DuckDB.DatabaseError {
+            switch db {
+            case .appenderFailedToAppendItem(let reason),
+                 .appenderFailedToEndRow(let reason),
+                 .appenderFailedToFlush(let reason),
+                 .appenderFailedToInitialize(let reason),
+                 .connectionQueryError(let reason),
+                 .databaseFailedToInitialize(let reason),
+                 .preparedStatementFailedToInitialize(let reason),
+                 .preparedStatementFailedToBindParameter(let reason),
+                 .preparedStatementQueryError(let reason):
+                return reason ?? String(describing: db)
+            default:
+                return String(describing: db)
+            }
+        }
+        return error.localizedDescription
+    }
+
     /// Connect to a DuckDB database
     /// - Parameters:
     ///   - path: Database file path. nil for in-memory database.
@@ -51,8 +78,8 @@ public actor DatabaseManager {
             currentPath = path
             isReadOnly = readOnly
         } catch {
+            let errorMsg = Self.extractMessage(from: error)
             // Graceful handling of version mismatch (error code 5 = IO error)
-            let errorMsg = error.localizedDescription
             if errorMsg.contains("error 5") || errorMsg.contains("IO Error") || errorMsg.contains("storage version") {
                 throw DatabaseError.storageVersionMismatch(
                     details: errorMsg,
@@ -132,7 +159,7 @@ public actor DatabaseManager {
             let result = try conn.query(finalSQL)
             return extractResultSet(from: result, limit: limit)
         } catch {
-            throw DatabaseError.queryFailed(error.localizedDescription)
+            throw DatabaseError.queryFailed(Self.extractMessage(from: error))
         }
     }
 
@@ -155,7 +182,7 @@ public actor DatabaseManager {
             // Return row count if available
             return Int(result.rowCount)
         } catch {
-            throw DatabaseError.executionFailed(error.localizedDescription)
+            throw DatabaseError.executionFailed(Self.extractMessage(from: error))
         }
     }
 
@@ -207,7 +234,7 @@ public actor DatabaseManager {
 
             return tables
         } catch {
-            throw DatabaseError.queryFailed(error.localizedDescription)
+            throw DatabaseError.queryFailed(Self.extractMessage(from: error))
         }
     }
 
@@ -243,7 +270,7 @@ public actor DatabaseManager {
 
             return columns
         } catch {
-            throw DatabaseError.queryFailed(error.localizedDescription)
+            throw DatabaseError.queryFailed(Self.extractMessage(from: error))
         }
     }
 
@@ -280,7 +307,7 @@ public actor DatabaseManager {
 
             return columns
         } catch {
-            throw DatabaseError.queryFailed(error.localizedDescription)
+            throw DatabaseError.queryFailed(Self.extractMessage(from: error))
         }
     }
 

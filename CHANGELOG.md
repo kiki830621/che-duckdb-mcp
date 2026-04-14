@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- `db_query` / `db_execute` / `db_connect` / `db_list_tables` / `db_describe` now surface DuckDB's actual error messages (Binder Error, Catalog Error, Parser Error, etc.) instead of opaque `DuckDB.DatabaseError error N` strings. Root cause: `error.localizedDescription` bridged enum errors via NSError and dropped the `reason` associated value. New `DatabaseManager.extractMessage(from:)` helper pattern-matches `DuckDB.DatabaseError` cases to surface the reason. Fixes PsychQuant/che-duckdb-mcp#1.
+
 ## [2.0.0] - 2026-04-12
 
 ### Added
