@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-04-14
+
+### Added
+- First GitHub release of the 2.x line (includes all 2.0.0 changes that only existed as local builds).
+
 ### Fixed
 - `db_query` / `db_execute` / `db_connect` / `db_list_tables` / `db_describe` now surface DuckDB's actual error messages (Binder Error, Catalog Error, Parser Error, etc.) instead of opaque `DuckDB.DatabaseError error N` strings. Root cause: `error.localizedDescription` bridged enum errors via NSError and dropped the `reason` associated value. New `DatabaseManager.extractMessage(from:)` helper pattern-matches `DuckDB.DatabaseError` cases to surface the reason. Fixes PsychQuant/che-duckdb-mcp#1.
+
+### Changed
+- `mcpb/manifest.json` version synced from stale `1.1.0` to `2.2.0`.
 
 ## [2.0.0] - 2026-04-12
 
