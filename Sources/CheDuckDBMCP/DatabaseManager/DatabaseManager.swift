@@ -29,7 +29,12 @@ public actor DatabaseManager {
     /// `error.localizedDescription` bridges to NSError and produces opaque
     /// strings like "error 4" that drop the reason. This helper pattern-matches
     /// the enum to surface the real message.
-    private static func extractMessage(from error: Error) -> String {
+    ///
+    /// Note: DuckDB error messages may include file paths, schema / column
+    /// names, and SQL fragments. This is acceptable for local-use MCP
+    /// contexts; sanitization would be required before any remote / shared
+    /// deployment.
+    static func extractMessage(from error: Error) -> String {
         if let db = error as? DuckDB.DatabaseError {
             switch db {
             case .appenderFailedToAppendItem(let reason),
@@ -41,7 +46,8 @@ public actor DatabaseManager {
                  .preparedStatementFailedToInitialize(let reason),
                  .preparedStatementFailedToBindParameter(let reason),
                  .preparedStatementQueryError(let reason):
-                return reason ?? String(describing: db)
+                if let r = reason, !r.isEmpty { return r }
+                return String(describing: db)
             default:
                 return String(describing: db)
             }
@@ -79,8 +85,10 @@ public actor DatabaseManager {
             isReadOnly = readOnly
         } catch {
             let errorMsg = Self.extractMessage(from: error)
-            // Graceful handling of version mismatch (error code 5 = IO error)
-            if errorMsg.contains("error 5") || errorMsg.contains("IO Error") || errorMsg.contains("storage version") {
+            // DuckDB surfaces storage-version mismatches as IO Error with
+            // "storage version" in the reason. Catch both keywords because
+            // DuckDB wording varies between versions.
+            if errorMsg.contains("IO Error") || errorMsg.contains("storage version") {
                 throw DatabaseError.storageVersionMismatch(
                     details: errorMsg,
                     suggestion: "The database file was created with a newer DuckDB version. Upgrade che-duckdb-mcp or use the DuckDB CLI to export/re-import the data."
@@ -317,16 +325,23 @@ public actor DatabaseManager {
             throw DatabaseError.notConnected
         }
 
-        // Get DuckDB version
-        let versionResult = try conn.query("SELECT version()")
-        let version = versionResult[DBInt(0)].cast(to: String.self)[DBInt(0)] ?? "unknown"
+        let version: String
+        let tableCount: Int64
 
-        // Get table count
-        let tableCountResult = try conn.query("""
-            SELECT COUNT(*) FROM information_schema.tables
-            WHERE table_schema NOT IN ('information_schema', 'pg_catalog')
-            """)
-        let tableCount = tableCountResult[DBInt(0)].cast(to: Int64.self)[DBInt(0)] ?? 0
+        do {
+            // Get DuckDB version
+            let versionResult = try conn.query("SELECT version()")
+            version = versionResult[DBInt(0)].cast(to: String.self)[DBInt(0)] ?? "unknown"
+
+            // Get table count
+            let tableCountResult = try conn.query("""
+                SELECT COUNT(*) FROM information_schema.tables
+                WHERE table_schema NOT IN ('information_schema', 'pg_catalog')
+                """)
+            tableCount = tableCountResult[DBInt(0)].cast(to: Int64.self)[DBInt(0)] ?? 0
+        } catch {
+            throw DatabaseError.queryFailed(Self.extractMessage(from: error))
+        }
 
         return DatabaseInfo(
             version: version,

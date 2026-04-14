@@ -363,7 +363,12 @@ public class CheDuckDBMCPServer {
             }
             return CallTool.Result(content: [.text(result)])
         } catch {
-            return CallTool.Result(content: [.text("Error: \(error.localizedDescription)")], isError: true)
+            // Defense-in-depth: if a raw DuckDB.DatabaseError slips past
+            // DatabaseManager (e.g. future codepaths without explicit catch),
+            // still surface the underlying reason rather than the opaque
+            // NSError-bridged "error N" string.
+            let message = DatabaseManager.extractMessage(from: error)
+            return CallTool.Result(content: [.text("Error: \(message)")], isError: true)
         }
     }
 
